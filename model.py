@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import numpy as np
 
 class DQN:
@@ -8,26 +9,42 @@ class DQN:
         self.input_size = input_size
         self.output_size = output_size
         self.net_name = name
+        self.update_target_rate = 200
         self.dis = 0.9
         self._build_network()
 
-    def _build_network(self, h1_size=200, h2_size=200, dropout_rate = 0.0, l_rate=1e-2):
+    def _build_network(self, l_rate=1e-3):
         with tf.variable_scope(self.net_name):
+            r, c, n  = self.input_size
             self._X = tf.placeholder(
-                tf.float32, [None, self.input_size], name="input_x")
+                tf.float32, [None, r, c, n], name="input_x")
 
-            W1 = tf.get_variable("W1", shape=[self.input_size, h1_size],
-                                 initializer=tf.contrib.layers.xavier_initializer())
-            layer1 = tf.nn.tanh(tf.matmul(self._X, W1))
-            # layer1 = tf.nn.dropout(layer1, dropout_rate)
-            W2 = tf.get_variable("W2", shape=[h1_size, h2_size],
-                                 initializer=tf.contrib.layers.xavier_initializer())
-            layer2 = tf.nn.tanh(tf.matmul(layer1, W2))
-            # layer2 = tf.nn.dropout(layer2, dropout_rate)
-            W3 = tf.get_variable("W3", shape=[h2_size, self.output_size],
-                                 initializer=tf.contrib.layers.xavier_initializer())
-            self._Qpred = tf.matmul(layer2, W3)
-
+            with slim.arg_scope([slim.conv2d, slim.fully_connected],
+                              activation_fn=tf.nn.relu,
+                              weights_initializer=tf.contrib.layers.xavier_initializer()):
+                              # weights_regularizer=slim.l2_regularizer(r_rate)
+                net = self._X
+                net = slim.conv2d(net, 32, [8, 8], stride = 4, scope='conv1')
+                net = slim.conv2d(net, 32, [6, 6], stride = 3, scope='conv2')
+                net = slim.conv2d(net, 64, [4, 4], stride = 2, scope='conv3')
+                net = slim.conv2d(net, 64, [3, 3], stride = 1, scope='conv4')
+                net = slim.flatten(net)
+                net = slim.fully_connected(net, 512, scope='fc1')
+                net = slim.fully_connected(net, self.output_size, activation_fn=None, scope='fc2')
+                self._Qpred = net
+                # net = slim.repeat(net, 3, slim.conv2d, 16, [3, 3], scope='conv1')
+                # net = slim.max_pool2d(net, [2, 2], scope='pool1')
+                # net = slim.repeat(net, 3, slim.conv2d, 32, [3, 3], scope='conv2')
+                # net = slim.max_pool2d(net, [2, 2], scope='pool2')
+                # net = slim.repeat(net, 3, slim.conv2d, 64, [3, 3], scope='conv3')
+                # net = slim.max_pool2d(net, [2, 2], scope='pool3')
+                # net = slim.repeat(net, 3, slim.conv2d, 64, [3, 3], scope='conv4')
+                # net = slim.max_pool2d(net, [2, 2], scope='pool4')
+                # net = slim.repeat(net, 3, slim.conv2d, 64, [3, 3], scope='conv5')
+                # net = slim.max_pool2d(net, [2, 2], scope='pool5')
+                # net = slim.dropout(net, dropout_rate, scope='dropout6')
+                # net = slim.fully_connected(net, 256, scope='fc7')
+                # net = slim.dropout(net, dropout_rate, scope='dropout7')
         self._Y = tf.placeholder(
             shape=[None, self.output_size], dtype=tf.float32)
 
@@ -36,7 +53,8 @@ class DQN:
             learning_rate=l_rate).minimize(self._loss)
 
     def predict(self, state):
-        x = np.reshape(state, [1, self.input_size])
+        r, c, n = self.input_size
+        x = np.reshape(state, [1, r, c, n])
         return self.session.run(self._Qpred, feed_dict={self._X: x})
 
     def update(self, x_stack, y_stack):
@@ -45,7 +63,9 @@ class DQN:
 
 
 def replay_train(mainDQN, targetDQN, train_batch):
-    x_stack = np.empty(0).reshape(0, mainDQN.input_size)
+    r, c, n = mainDQN.input_size
+
+    x_stack = np.empty(0).reshape(0, r, c, n)
     y_stack = np.empty(0).reshape(0, mainDQN.output_size)
 
     for state, action, reward, next_state, done in train_batch:
