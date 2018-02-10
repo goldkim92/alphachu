@@ -9,7 +9,7 @@ class DQN:
         self.input_size = input_size
         self.output_size = output_size
         self.net_name = name
-        self.update_target_rate = 200
+        self.update_target_rate = 500
         self.dis = 0.9
         self._build_network()
 
@@ -60,7 +60,6 @@ class DQN:
     def update(self, x_stack, y_stack):
         return self.session.run([self._loss, self._train], feed_dict={
             self._X: x_stack, self._Y: y_stack})
-
 
 def replay_train(mainDQN, targetDQN, train_batch):
     r, c, n = mainDQN.input_size

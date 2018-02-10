@@ -12,16 +12,20 @@ import random
 from collections import deque
 
 class Env:
-	def __init__(self):
+	def __init__(self, max_episodes):
 		self.observation_space = (283, 430)
 		self.history_num = 6
-		self.key_dict = {0: c.left_s,
-						1: c.left_e,
-			            2: c.right_s,
-			            3: c.right_e,
-			            4: c.up,
-			            5: c.p,
-			            6: c.p_down}
+		self.key_dict = {0: c.stay,
+						1: c.left,
+			            2: c.right,
+			            3: c.up,
+			            4: c.up_left,
+			            5: c.up_right,
+			            6: c.p,
+			            7: c.p_left,
+			            8: c.p_right,
+			            9: c.p_up,
+			            10: c.p_down}
 
 		self.action_space = len(self.key_dict)
 		self.win_reward = 500
@@ -39,6 +43,15 @@ class Env:
 		self.upper_yellow = np.array([30, 255, 255])
 		# self.lower_red = np.array([20, 120, 100])
 		# self.upper_red = np.array([30, 130, 255])
+		self.max_episodes = max_episodes
+		self.epsilon = 1.
+		self.epsilon_start, self.epsilon_end = 1.0, 0.1
+		self.exploration_steps = 1000000.
+		self.epsilon_decay_step = (self.epsilon_start - self.epsilon_end) \
+		                          / self.max_episodes
+		self.avg_q_max, self.avg_loss = 0, 0
+		self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summary()
+
 
 		self.pole = 0
 		self.ground = 0
@@ -99,7 +112,7 @@ class Env:
 			return False
 
 	def check_start(self, img):	
-		return np.sum(img[-10:]) == 0
+		return np.sum(img) == 0
 
 	def check_end(self, img):
 		if np.sum(img[-2:,:]) > 1000:
@@ -111,3 +124,23 @@ class Env:
 				return True
 		else:
 			return False
+			
+	def setup_summary(self):
+	    episode_total_reward = tf.Variable(0.)
+	    episode_avg_max_q = tf.Variable(0.)
+	    episode_duration = tf.Variable(0.)
+	    episode_avg_loss = tf.Variable(0.)
+
+	    tf.summary.scalar('Total Reward/Episode', episode_total_reward)
+	    tf.summary.scalar('Average Max Q/Episode', episode_avg_max_q)
+	    tf.summary.scalar('Duration/Episode', episode_duration)
+	    tf.summary.scalar('Average Loss/Episode', episode_avg_loss)
+
+	    summary_vars = [episode_total_reward, episode_avg_max_q,
+	                    episode_duration, episode_avg_loss]
+	    summary_placeholders = [tf.placeholder(tf.float32) for _ in
+	                            range(len(summary_vars))]
+	    update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in
+	                  range(len(summary_vars))]
+	    summary_op = tf.summary.merge_all()
+	    return summary_placeholders, update_ops, summary_op
