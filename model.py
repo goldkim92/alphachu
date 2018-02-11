@@ -10,7 +10,7 @@ class DQN:
         self.output_size = output_size
         self.net_name = name
         self.update_target_rate = 500
-        self.dis = 0.9
+        self.dis = 0.99
         self._build_network()
 
     def _build_network(self, l_rate=1e-3):
@@ -25,9 +25,9 @@ class DQN:
                               # weights_regularizer=slim.l2_regularizer(r_rate)
                 net = self._X
                 net = slim.conv2d(net, 32, [8, 8], stride = 4, scope='conv1')
-                net = slim.conv2d(net, 32, [6, 6], stride = 3, scope='conv2')
-                net = slim.conv2d(net, 64, [4, 4], stride = 2, scope='conv3')
-                net = slim.conv2d(net, 64, [3, 3], stride = 1, scope='conv4')
+                # net = slim.conv2d(net, 32, [6, 6], stride = 3, scope='conv2')
+                net = slim.conv2d(net, 64, [4, 4], stride = 2, scope='conv2')
+                net = slim.conv2d(net, 64, [3, 3], stride = 1, scope='conv3')
                 net = slim.flatten(net)
                 net = slim.fully_connected(net, 512, scope='fc1')
                 net = slim.fully_connected(net, self.output_size, activation_fn=None, scope='fc2')

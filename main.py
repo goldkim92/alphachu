@@ -8,13 +8,15 @@ from collections import deque
 import time
 
 import model as m
+import control
 from model import DQN
 import environment as e
 from environment import Env
 
 def main():
-	max_episodes = 40000
-	REPLAY_MEMORY = 400000
+	max_episodes = 20000
+	REPLAY_MEMORY = 20000
+
 	env = Env(max_episodes)
 	replay_buffer = deque()
 	with tf.Session() as sess:
@@ -37,7 +39,7 @@ def main():
 			mask, img = env.preprocess_img(False)			
 			ready = env.get_standard(mask)
 		print("Ready")
-		for episode in range(1, max_episodes + 1):	 
+		for episode in range(4607, max_episodes + 1):	 
 			start1 = False
 			start2 = False
 			restart = False
@@ -73,12 +75,13 @@ def main():
 					time.sleep(env.frame_time - ((time.time() - starttime) % env.frame_time))	
 					frame += 1
 					if env.epsilon > env.epsilon_end:
-						env.epsilon -= env.epsilon_decay_step
+						env.epsilon = 1 - episode * env.epsilon_decay_step
 					# endtime = time.time()
 					# print(endtime-starttime)
 					# starttime = endtime
 			except KeyboardInterrupt:
-			    break					
+				control.release()
+				break					
 
 			stats = [total_reward, env.avg_q_max / float(frame), frame, env.avg_loss / float(frame)]
 			for i in range(len(stats)):
@@ -112,11 +115,13 @@ def main():
 					print("Loss: ", loss)
 					print("Wait to restart to game")						
 					env.key_dict[6](env.frame_time)	
-					time.sleep(env.frame_time)		
-				if wait > 2000:					
+					time.sleep(env.frame_time)	
+
+				if wait > 750:					
 					print("Let's start!")
 					env.key_dict[6](env.frame_time)	
 					time.sleep(env.frame_time)		
+				control.release()
 
 			if episode % mainDQN.update_target_rate == 1:
 				sess.run(copy_ops)
